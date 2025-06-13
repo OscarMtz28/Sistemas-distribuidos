@@ -27,12 +27,13 @@ def peer_server(port):
         thread.start()
 
 # Cliente que envía mensajes a otros peers
-def connect_to_peers(peers, message):
+def connect_to_peers(peers, archivo):
     for host, port in peers:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.connect((host, port))
-                sock.sendall(message.encode())
+                archivo = "prueba.txt"
+                sock.sendall(archivo.encode())
                 response = sock.recv(1024).decode()
                 print(f"[{host}:{port}] ⇐ {response}")
         except Exception as e:
