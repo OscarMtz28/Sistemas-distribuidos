@@ -2,14 +2,30 @@ import socket
 import threading
 import sys
 import time
+import os # Biblioteca que permite la lectura de archivos de la pc
 
 # Función para manejar conexiones entrantes
 def handle_peer(conn, addr):
     try:
         print(f"[+] Conectado desde {addr}")
-        data = conn.recv(1024).decode()
-        print(f"[{addr}] → {data}")
-        conn.sendall(f"Echo desde {conn.getsockname()}".encode())
+        # Modificacion para leer informacion del archivo
+        #data = conn.recv(1024).decode()
+        #print(f"[{addr}] → {data}")
+        #conn.sendall(f"Echo desde {conn.getsockname()}".encode())
+        file = conn.recv(1024).decode()
+        name, size = file.split("|")
+        size = int(size)
+
+        with open(name, "wb") as pr:  # Hacemos el cast del archivo para que se escriba en binario como bytes
+            recived = 0 # Contador para los bytes recibidos
+            while recived < size:
+                data = conn.recv(4096) #Buffer
+                if not data: # El archivo esta vacio? Se cierra
+                    break
+                pr.write(data) # La variable pr que contiene a nuestro archivo abierto escribe los bytes recibidos
+                recived += len(data) # Actualiza el contador , la funcion "len" nos dice cuantos bytes acabamos de recibir
+        print("Archivo recibido correctamente...")
+        conn.sendall(f"Archivo {name} recibido".encode())
     except Exception as e:
         print(f"[!] Error con {addr}: {e}")
     finally:
@@ -28,12 +44,23 @@ def peer_server(port):
 
 # Cliente que envía mensajes a otros peers
 def connect_to_peers(peers, archivo):
+
+    name = os.path.basename(archivo)
+    size = os.path.getsize(archivo)
+
     for host, port in peers:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.connect((host, port))
-                archivo = "prueba.txt"
-                sock.sendall(archivo.encode())
+                #archivo = "prueba.txt"
+                info = f"{name}|{size}"
+                sock.sendall(info.encode())
+                with open(archivo, "rb") as pr: 
+                    send = 0
+                    while send < size:
+                        data = pr.read (4096)
+                        sock.sendall(data)
+                        send += len(data)
                 response = sock.recv(1024).decode()
                 print(f"[{host}:{port}] ⇐ {response}")
         except Exception as e:
@@ -57,7 +84,7 @@ if __name__ == "__main__":
 
     # Enviar mensaje a los peers conocidos
     while True:
-        mensaje = input("Mensaje a enviar (o 'exit'): ")
-        if mensaje.lower() == 'exit':
+        archivo = input("Ingrese la direccion del archivo .txt a enviat ( o 'exit' para salir): ")
+        if archivo.lower() == 'exit':
             break
-        connect_to_peers(peers, mensaje)
+        connect_to_peers(peers, archivo)
